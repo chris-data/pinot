@@ -18,6 +18,7 @@ package com.linkedin.pinot.core.query.pruner;
 import com.linkedin.pinot.common.data.FieldSpec;
 import com.linkedin.pinot.common.request.FilterOperator;
 import com.linkedin.pinot.common.utils.request.FilterQueryTree;
+import com.linkedin.pinot.core.indexsegment.IndexSegment;
 import com.linkedin.pinot.core.segment.index.ColumnMetadata;
 import java.util.List;
 import java.util.Map;
@@ -31,7 +32,7 @@ import javax.annotation.Nonnull;
  */
 public abstract class AbstractSegmentPruner implements SegmentPruner {
 
-  public abstract boolean pruneSegment(FilterQueryTree filterQueryTree, Map<String, ColumnMetadata> columnMetadataMap);
+  public abstract boolean pruneSegment(IndexSegment segment, FilterQueryTree filterQueryTree, Map<String, ColumnMetadata> columnMetadataMap);
 
   /**
    * Given a non leaf filter query tree node prunes it as follows:
@@ -40,12 +41,14 @@ public abstract class AbstractSegmentPruner implements SegmentPruner {
    *   <li> For 'OR', node is pruned as long as all children can prune it. </li>
    * </ul>
    *
+   *
+   * @param segment
    * @param filterQueryTree Non leaf node in the filter query tree.
    * @param columnMetadataMap Map for column metadata.
    *
    * @return True to prune, false otherwise
    */
-  protected boolean pruneNonLeaf(@Nonnull FilterQueryTree filterQueryTree,
+  protected boolean pruneNonLeaf(IndexSegment segment, @Nonnull FilterQueryTree filterQueryTree,
       @Nonnull Map<String, ColumnMetadata> columnMetadataMap) {
     List<FilterQueryTree> children = filterQueryTree.getChildren();
 
@@ -57,7 +60,7 @@ public abstract class AbstractSegmentPruner implements SegmentPruner {
     switch (filterOperator) {
       case AND:
         for (FilterQueryTree child : children) {
-          if (pruneSegment(child, columnMetadataMap)) {
+          if (pruneSegment(segment, child, columnMetadataMap)) {
             return true;
           }
         }
@@ -65,7 +68,7 @@ public abstract class AbstractSegmentPruner implements SegmentPruner {
 
       case OR:
         for (FilterQueryTree child : children) {
-          if (!pruneSegment(child, columnMetadataMap)) {
+          if (!pruneSegment(segment, child, columnMetadataMap)) {
             return false;
           }
         }

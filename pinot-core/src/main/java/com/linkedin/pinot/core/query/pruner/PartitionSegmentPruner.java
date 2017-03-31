@@ -21,6 +21,10 @@ import com.linkedin.pinot.common.utils.request.FilterQueryTree;
 import com.linkedin.pinot.common.utils.request.RequestUtils;
 import com.linkedin.pinot.core.data.partition.PartitionFunction;
 import com.linkedin.pinot.core.indexsegment.IndexSegment;
+
+import com.linkedin.pinot.core.realtime.impl.RealtimeSegmentImpl;
+import com.linkedin.pinot.core.realtime.impl.datasource.RealtimeColumnDataSource;
+import com.linkedin.pinot.core.realtime.impl.dictionary.MutableDictionaryReader;
 import com.linkedin.pinot.core.segment.index.ColumnMetadata;
 import com.linkedin.pinot.core.segment.index.SegmentMetadataImpl;
 import java.util.List;
@@ -49,7 +53,12 @@ public class PartitionSegmentPruner extends AbstractSegmentPruner {
     Map<String, ColumnMetadata> columnMetadataMap =
         ((SegmentMetadataImpl) segment.getSegmentMetadata()).getColumnMetadataMap();
 
-    return (columnMetadataMap != null) && pruneSegment(filterQueryTree, columnMetadataMap);
+    return pruneSegment(segment, filterQueryTree, columnMetadataMap);
+  }
+
+  @Override
+  public String toString() {
+    return "PartitionSegmentPruner";
   }
 
   /**
@@ -59,17 +68,19 @@ public class PartitionSegmentPruner extends AbstractSegmentPruner {
    *   <li> For leaf nodes, segment is pruned if equality predicate value on column does fall within the
    *        partition range of the segment. For all other cases, segment is not pruned. </li>
    * </ul>
+   *
+   * @param segment
    * @param filterQueryTree Filter query tree
    * @param columnMetadataMap Column metadata map
    * @return True if segment can be pruned, false otherwise
    */
   @Override
-  public boolean pruneSegment(FilterQueryTree filterQueryTree, Map<String, ColumnMetadata> columnMetadataMap) {
+  public boolean pruneSegment(IndexSegment segment, FilterQueryTree filterQueryTree, Map<String, ColumnMetadata> columnMetadataMap) {
     List<FilterQueryTree> children = filterQueryTree.getChildren();
 
     // Non-leaf node
     if (children != null && !children.isEmpty()) {
-      return pruneNonLeaf(filterQueryTree, columnMetadataMap);
+      return pruneNonLeaf(segment, filterQueryTree, columnMetadataMap);
     }
 
     // TODO: Enhance partition based pruning for RANGE operator.
@@ -79,18 +90,36 @@ public class PartitionSegmentPruner extends AbstractSegmentPruner {
 
     // Leaf node
     String column = filterQueryTree.getColumn();
-    ColumnMetadata metadata = columnMetadataMap.get(column);
-    if (metadata == null) {
-      return false;
+    return pruneLeafSegment(segment, filterQueryTree, columnMetadataMap, column);
+  }
+
+  private boolean pruneLeafSegment(IndexSegment segment, FilterQueryTree filterQueryTree,
+      Map<String, ColumnMetadata> columnMetadataMap, String column) {
+    List<IntRange> partitionRanges;
+    PartitionFunction partitionFunction;
+    Comparable value;
+    if (columnMetadataMap != null) {
+      ColumnMetadata metadata = columnMetadataMap.get(column);
+      if (metadata == null) {
+        return false;
+      }
+
+      partitionRanges = metadata.getPartitionRanges();
+      partitionFunction = metadata.getPartitionFunction();
+      value = getValue(filterQueryTree.getValue().get(0), metadata.getDataType());
+
+    } else {
+      RealtimeColumnDataSource dataSource = ((RealtimeSegmentImpl) segment).getDataSource(column);
+      MutableDictionaryReader metadata = ((RealtimeSegmentImpl) segment).getDataSource(column).getDictionary();
+      partitionRanges = metadata.getPartitionRanges();
+      partitionFunction = metadata.getPartitionFunction();
+      value = getValue(filterQueryTree.getValue().get(0), dataSource.getDataSourceMetadata().getDataType());
     }
 
-    List<IntRange> partitionRanges = metadata.getPartitionRanges();
     if (partitionRanges == null || partitionRanges.isEmpty()) {
       return false;
     }
 
-    Comparable value = getValue(filterQueryTree.getValue().get(0), metadata.getDataType());
-    PartitionFunction partitionFunction = metadata.getPartitionFunction();
     int partition = partitionFunction.getPartition(value);
 
     for (IntRange partitionRange : partitionRanges) {

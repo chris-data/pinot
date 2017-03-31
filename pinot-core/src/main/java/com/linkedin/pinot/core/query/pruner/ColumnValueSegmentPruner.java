@@ -49,7 +49,7 @@ public class ColumnValueSegmentPruner extends AbstractSegmentPruner {
     // For realtime segment, this map can be null.
     Map<String, ColumnMetadata> columnMetadataMap =
         ((SegmentMetadataImpl) segment.getSegmentMetadata()).getColumnMetadataMap();
-    return (columnMetadataMap != null) && pruneSegment(filterQueryTree, columnMetadataMap);
+    return (columnMetadataMap!= null) && pruneSegment(segment, filterQueryTree, columnMetadataMap);
   }
 
   @Override
@@ -68,13 +68,15 @@ public class ColumnValueSegmentPruner extends AbstractSegmentPruner {
    *   <li> For non-leaf OR node: True if all its children returned true, false otherwise. </li>
    * </ul>
    *
+   *
+   * @param segment
    * @param filterQueryTree Filter tree for the query.
    * @param columnMetadataMap Map from column name to column metadata.
    * @return True if segment can be pruned out, false otherwise.
    */
   @SuppressWarnings("unchecked")
   @Override
-  public boolean pruneSegment(@Nonnull FilterQueryTree filterQueryTree,
+  public boolean pruneSegment(IndexSegment segment, @Nonnull FilterQueryTree filterQueryTree,
       @Nonnull Map<String, ColumnMetadata> columnMetadataMap) {
     FilterOperator filterOperator = filterQueryTree.getOperator();
     List<FilterQueryTree> children = filterQueryTree.getChildren();
@@ -171,7 +173,7 @@ public class ColumnValueSegmentPruner extends AbstractSegmentPruner {
       }
     } else {
       // Parent node
-      return pruneNonLeaf(filterQueryTree, columnMetadataMap);
+      return pruneNonLeaf(segment, filterQueryTree, columnMetadataMap);
     }
   }
 }

@@ -36,7 +36,7 @@ import org.testng.annotations.Test;
  * Integration test that creates a Kafka broker, creates a Pinot cluster that consumes from Kafka and queries Pinot.
  *
  */
-public class LLCRealtimeClusterIntegrationTest extends RealtimeClusterIntegrationTest {
+public class LLCPartitioningIntegrationTest extends RealtimeClusterIntegrationTest {
   private static int KAFKA_PARTITION_COUNT = 2;
   private static final String KAFKA_PARTITIONING_KEY = "AirlineID";
 
@@ -60,7 +60,7 @@ public class LLCRealtimeClusterIntegrationTest extends RealtimeClusterIntegratio
   public void testSegmentFlushSize() {
     ZkClient zkClient = new ZkClient(ZkStarter.DEFAULT_ZK_STR, 10000);
     zkClient.setZkSerializer(new ZNRecordSerializer());
-    String zkPath = "/LLCRealtimeClusterIntegrationTest/PROPERTYSTORE/SEGMENTS/mytable_REALTIME";
+    String zkPath = "/LLCPartitioningIntegrationTest/PROPERTYSTORE/SEGMENTS/mytable_REALTIME";
     List<String> segmentNames =
         zkClient.getChildren(zkPath);
     for (String segmentName : segmentNames) {
