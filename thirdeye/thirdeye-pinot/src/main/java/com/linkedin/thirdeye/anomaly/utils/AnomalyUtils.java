@@ -1,8 +1,8 @@
 package com.linkedin.thirdeye.anomaly.utils;
 
 import com.linkedin.thirdeye.anomalydetection.context.AnomalyFeedback;
-import com.linkedin.thirdeye.constant.AnomalyFeedbackType;
 import com.linkedin.thirdeye.datalayer.dto.MergedAnomalyResultDTO;
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.commons.collections.CollectionUtils;
@@ -65,5 +65,23 @@ public class AnomalyUtils {
       }
     }
     return false;
+  }
+
+  public static class metaDataNode{
+    public double windowSize;
+    public double severity;
+    public String startTimeISO;
+    public String endTimeISO;
+    public String functionName;
+    public AnomalyFeedback feedback;
+
+    public metaDataNode(MergedAnomalyResultDTO anomaly){
+      this.windowSize = 1. * (anomaly.getEndTime() - anomaly.getStartTime()) / 3600000L;
+      this.severity = Math.abs(anomaly.getWeight());
+      this.startTimeISO = new Timestamp(anomaly.getStartTime()).toString();
+      this.endTimeISO = new Timestamp(anomaly.getEndTime()).toString();
+      this.functionName = anomaly.getFunction().getFunctionName();
+      this.feedback = anomaly.getFeedback();
+    }
   }
 }
